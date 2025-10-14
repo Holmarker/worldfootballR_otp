@@ -1,5 +1,5 @@
 Type: Package
-Package: worldfootballR
+Package: worldfootballR.OTP
 Title: Extract and Clean World Football (Soccer) Data
 Version: 0.6.8.0001
 Authors@R: c(
