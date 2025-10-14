@@ -359,44 +359,53 @@
 .tm_fix_dates <- function(dirty_dates) {
   
   fix_date <- function(dirty_date) {
-    if(is.na(dirty_date)) {
-      clean_date <- NA_character_
+    if (is.na(dirty_date) || dirty_date == "") {
+      return(NA_character_)
+    }
+    
+    dirty_date <- trimws(dirty_date)
+    
+    # 1. Handle "dd/mm/yyyy" or "dd/mm/yy"
+    if (grepl("/", dirty_date)) {
+      tryCatch({
+        clean_date <- lubridate::dmy(dirty_date) %>% as.character()
+      }, error = function(e) {
+        clean_date <- NA_character_
+      })
+      
+      # 2. Handle "dd.mm.yyyy" or "yyyy.mm.dd"
     } else if (grepl("\\.", dirty_date)) {
+      # try both dmy and ymd
+      clean_date <- tryCatch({
+        lubridate::dmy(dirty_date) %>% as.character()
+      }, error = function(e) {
+        tryCatch(lubridate::ymd(dirty_date) %>% as.character(),
+                 error = function(e) NA_character_)
+      })
       
-      first_part <- sub("\\..*", "", dirty_date)
+      # 3. Handle "yyyy-mm-dd"
+    } else if (grepl("-", dirty_date)) {
+      clean_date <- tryCatch({
+        lubridate::ymd(dirty_date) %>% as.character()
+      }, error = function(e) NA_character_)
       
-      # Count digits
-      n <- nchar(first_part)
-      
-      if (n == 4) {
-        # Do something if 4 digits
-        tryCatch({clean_date <- lubridate::ymd(dirty_date) %>% as.character()}, error = function(e) {clean_date <- NA_character_})
-      } else if (n == 2) {
-        # Do something else if 2 digits
-        tryCatch({clean_date <- lubridate::dmy(dirty_date) %>% as.character()}, error = function(e) {clean_date <- NA_character_})
-      } else {
-        # Fallback
-        clean_date <- NA_character_
-      }
-      
-      
+      # 4. Handle "Aug 30 2020" or similar
     } else {
-      split_string <- strsplit(dirty_date, split = " ") %>% unlist() %>% gsub(",", "", .)
-      if(length(split_string) != 3) {
-        clean_date <- NA_character_
+      split_string <- strsplit(dirty_date, " ") %>% unlist() %>% gsub(",", "", .)
+      if (length(split_string) == 3) {
+        clean_date <- tryCatch({
+          lubridate::ymd(paste(split_string[3], split_string[1], split_string[2], sep = "-")) %>% as.character()
+        }, error = function(e) NA_character_)
       } else {
-        tryCatch({clean_date <- lubridate::ymd(paste(split_string[3], split_string[1], split_string[2], sep = "-")) %>%
-          as.character()}, error = function(e) {clean_date <- NA_character_})
+        clean_date <- NA_character_
       }
     }
     
-    return(clean_date)
+    clean_date
   }
-  clean_dates <- dirty_dates %>% purrr::map_chr(fix_date)
   
-  return(clean_dates)
+  purrr::map_chr(dirty_dates, fix_date)
 }
-
 
 #' Replace Empty Values
 #'
